@@ -25,6 +25,8 @@ func main() {
 		err = runShow(os.Args[2:])
 	case "read":
 		err = runSetStatus(os.Args[2:], "read")
+	case "unread":
+		err = runSetStatus(os.Args[2:], "unread")
 	case "pin":
 		err = runSetStatus(os.Args[2:], "pinned")
 	case "unpin":
@@ -55,9 +57,10 @@ Usage:
   slk inbox [--channel name] [--min-replies N] [--json] [--all]
                                     show unread messages
   slk show <ts> [--json]            show message + thread
-  slk read <ts> [<ts>...]           mark messages as read
-  slk pin <ts> [<ts>...]            pin messages (never archived)
-  slk unpin <ts> [<ts>...]          unpin messages (back to read)
+  slk read <ts> [<ts>...] [--channel name]   mark messages as read
+  slk unread <ts> [<ts>...] [--channel name] mark messages as unread
+  slk pin <ts> [<ts>...]                     pin messages (never archived)
+  slk unpin <ts> [<ts>...]                   unpin messages (back to read)
   slk open <ts>                     open message in Slack (browser)
   slk channels                      list tracked channels
   slk channels add [--private]      add a channel to track (--private requires groups:read scope)

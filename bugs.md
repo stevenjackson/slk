@@ -10,7 +10,7 @@
 
 **Suggestions:**
 - `slk inbox --limit N` — cap results (e.g. top 50 by recency or reply count)
-- `slk inbox --min-replies N` — filter to threads with at least N replies
+- ~~`slk inbox --min-replies N`~~ — **done**
 - `slk inbox --summary` — condensed output: one line per message, ts + channel + author + reply count + truncated text (no full body). Current non-JSON format is close but still verbose at scale.
 
 ---
@@ -26,12 +26,11 @@
 
 ---
 
-### No bulk `read` command
+### ~~No bulk `read` command~~ — **done**
 
-**Problem:** Marking 10 messages read requires 10 separate `slk read <ts>` calls (or chaining with `&&`). Had to manually chain all timestamps.
+~~**Problem:** Marking 10 messages read requires 10 separate `slk read <ts>` calls (or chaining with `&&`). Had to manually chain all timestamps.~~
 
-**Suggestions:**
-- `slk read <ts1> <ts2> <ts3>` — accept multiple timestamps
+Remaining suggestions:
 - `slk read --channel blogging` — mark entire channel read
 - `slk read --before <ts>` — mark everything before a timestamp as read
 
@@ -47,14 +46,11 @@
 
 ---
 
-### `show` and `inbox` don't output Slack deep links
+### ~~`show` and `inbox` don't output Slack deep links~~ — **done**
 
-**Problem:** To get a shareable Slack URL for a message, you have to manually construct it from the channel ID and timestamp (`archives/{channel_id}/p{ts_without_dot}`). `slk show` and `slk inbox --json` don't include it.
+~~**Problem:** To get a shareable Slack URL for a message, you have to manually construct it from the channel ID and timestamp (`archives/{channel_id}/p{ts_without_dot}`). `slk show` and `slk inbox --json` don't include it.~~
 
-**Suggestions:**
-- `slk show <ts>` output includes a `slack_url:` field
-- `slk inbox --json` includes `slack_url` in each message object
-- `slk open <ts>` already opens the URL — it clearly knows how to construct it
+`slack_url` now included in `slk show` output and `slk inbox --json`. `slk open` refactored to use shared helper.
 
 ---
 
