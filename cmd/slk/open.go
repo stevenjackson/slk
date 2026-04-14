@@ -26,7 +26,7 @@ func runOpen(args []string) error {
 		return fmt.Errorf("message %s not found", ts)
 	}
 
-	url := fmt.Sprintf("https://slack.com/app_redirect?channel=%s&message_ts=%s", channelID, ts)
+	url := slackURL(channelID, ts)
 
 	var cmd *exec.Cmd
 	switch runtime.GOOS {

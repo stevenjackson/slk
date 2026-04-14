@@ -55,6 +55,7 @@ func runShow(args []string) error {
 	m.Author = resolveUser(m.UserID, userMap)
 	m.Text = cleanMarkup(m.Text, userMap)
 	m.Time = formatTS(m.TS)
+	m.SlackURL = slackURL(m.ChannelID, m.TS)
 
 	var rawReplies []json.RawMessage
 	json.Unmarshal([]byte(repliesJSON), &rawReplies)
@@ -85,6 +86,7 @@ func runShow(args []string) error {
 	fmt.Printf("author:  %s\n", m.Author)
 	fmt.Printf("time:    %s\n", m.Time)
 	fmt.Printf("status:  %s\n", m.Status)
+	fmt.Printf("url:     %s\n", m.SlackURL)
 	fmt.Println()
 	fmt.Println(m.Text)
 

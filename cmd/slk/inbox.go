@@ -13,15 +13,20 @@ import (
 )
 
 type Message struct {
-	TS          string  `json:"ts"`
-	ChannelID   string  `json:"channel_id"`
-	ChannelName string  `json:"channel_name"`
-	UserID      string  `json:"user_id"`
-	Author      string  `json:"author"`
-	Text        string  `json:"text"`
-	ReplyCount  int     `json:"reply_count"`
-	Status      string  `json:"status"`
-	Time        string  `json:"time"`
+	TS          string `json:"ts"`
+	ChannelID   string `json:"channel_id"`
+	ChannelName string `json:"channel_name"`
+	UserID      string `json:"user_id"`
+	Author      string `json:"author"`
+	Text        string `json:"text"`
+	ReplyCount  int    `json:"reply_count"`
+	Status      string `json:"status"`
+	Time        string `json:"time"`
+	SlackURL    string `json:"slack_url"`
+}
+
+func slackURL(channelID, ts string) string {
+	return fmt.Sprintf("https://slack.com/app_redirect?channel=%s&message_ts=%s", channelID, ts)
 }
 
 func runInbox(args []string) error {
@@ -84,6 +89,7 @@ func runInbox(args []string) error {
 		m.Author = resolveUser(m.UserID, userMap)
 		m.Text = cleanMarkup(m.Text, userMap)
 		m.Time = formatTS(m.TS)
+		m.SlackURL = slackURL(m.ChannelID, m.TS)
 		msgs = append(msgs, m)
 	}
 
