@@ -1,0 +1,30 @@
+# Binary (root only, not cmd/slk/)
+/slk
+
+# Environment / credentials
+.env
+.env.*
+!.env.example
+
+# Slack tokens / secrets
+*.token
+secrets.*
+
+# Database (contains message content and tokens)
+*.db
+*.db-shm
+*.db-wal
+~/.slk/
+
+# Go build artifacts
+*.exe
+*.test
+*.prof
+/vendor/
+
+# macOS
+.DS_Store
+
+# IDE
+.claude/
+*.swp
