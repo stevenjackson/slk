@@ -31,6 +31,7 @@ func slackURL(channelID, ts string) string {
 
 func runInbox(args []string) error {
 	var channelFilter string
+	var minReplies int
 	asJSON := false
 	showAll := false // include read + pinned
 
@@ -43,6 +44,10 @@ func runInbox(args []string) error {
 		case "--channel":
 			if i+1 < len(args) {
 				channelFilter = args[i+1]
+			}
+		case "--min-replies":
+			if i+1 < len(args) {
+				fmt.Sscanf(args[i+1], "%d", &minReplies)
 			}
 		}
 	}
@@ -71,6 +76,10 @@ func runInbox(args []string) error {
 	if channelFilter != "" {
 		query += " AND c.name = ?"
 		params = append(params, channelFilter)
+	}
+	if minReplies > 0 {
+		query += " AND m.reply_count >= ?"
+		params = append(params, minReplies)
 	}
 	query += " ORDER BY m.ts ASC"
 

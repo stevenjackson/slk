@@ -52,7 +52,7 @@ func printUsage() {
 
 Usage:
   slk sync [--days N]               pull messages into local DB (default: 7 days)
-  slk inbox [--channel name] [--json] [--all]
+  slk inbox [--channel name] [--min-replies N] [--json] [--all]
                                     show unread messages
   slk show <ts> [--json]            show message + thread
   slk read <ts>                     mark message as read
