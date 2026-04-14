@@ -17,18 +17,12 @@ type ShowResult struct {
 	Replies []ThreadMessage `json:"replies"`
 }
 
-func runShow(args []string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("usage: slk show <ts> [--json]")
-	}
-	ts := args[0]
-	asJSON := false
-	for _, a := range args[1:] {
-		if a == "--json" {
-			asJSON = true
-		}
-	}
+type ShowCmd struct {
+	Ts   string `arg:"" help:"message timestamp"`
+	JSON bool   `help:"output JSON" short:"j"`
+}
 
+func (c *ShowCmd) Run() error {
 	db, err := slkdb.Open()
 	if err != nil {
 		return err
@@ -46,10 +40,10 @@ func runShow(args []string) error {
 		SELECT m.ts, m.channel_id, c.name, m.user_id, m.text, m.reply_count, m.status, m.replies_json
 		FROM messages m
 		JOIN channels c ON c.id = m.channel_id
-		WHERE m.ts = ?`, ts).
+		WHERE m.ts = ?`, c.Ts).
 		Scan(&m.TS, &m.ChannelID, &m.ChannelName, &m.UserID, &m.Text, &m.ReplyCount, &m.Status, &repliesJSON)
 	if err != nil {
-		return fmt.Errorf("message %s not found", ts)
+		return fmt.Errorf("message %s not found", c.Ts)
 	}
 
 	m.Author = resolveUser(m.UserID, userMap)
@@ -74,7 +68,7 @@ func runShow(args []string) error {
 		}
 	}
 
-	if asJSON {
+	if c.JSON {
 		result := ShowResult{Message: m, Replies: replies}
 		enc := json.NewEncoder(out())
 		enc.SetIndent("", "  ")

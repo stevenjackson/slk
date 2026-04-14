@@ -9,26 +9,15 @@ import (
 	slkdb "github.com/stevejackson/slk/internal/db"
 )
 
-func runChannels(args []string) error {
-	if len(args) > 0 && args[0] == "add" {
-		private := false
-		for _, a := range args[1:] {
-			if a == "--private" {
-				private = true
-			}
-		}
-		return runChannelsAdd(private)
-	}
-	if len(args) > 0 && args[0] == "rm" {
-		if len(args) < 2 {
-			return fmt.Errorf("usage: slk channels rm <name>")
-		}
-		return runChannelsRm(args[1])
-	}
-	return runChannelsList()
+type ChannelsCmd struct {
+	List ChannelsListCmd `cmd:"" default:"1" help:"list tracked channels"`
+	Add  ChannelsAddCmd  `cmd:"" help:"add a channel to track"`
+	Rm   ChannelsRmCmd   `cmd:"" help:"stop tracking a channel"`
 }
 
-func runChannelsList() error {
+type ChannelsListCmd struct{}
+
+func (c *ChannelsListCmd) Run() error {
 	db, err := slkdb.Open()
 	if err != nil {
 		return err
@@ -61,7 +50,11 @@ func runChannelsList() error {
 	return nil
 }
 
-func runChannelsAdd(private bool) error {
+type ChannelsAddCmd struct {
+	Private bool `help:"include private channels (requires groups:read scope)"`
+}
+
+func (c *ChannelsAddCmd) Run() error {
 	token := os.Getenv("SLACK_USER_TOKEN")
 	if token == "" {
 		return fmt.Errorf("SLACK_USER_TOKEN not set")
@@ -77,7 +70,7 @@ func runChannelsAdd(private bool) error {
 	fmt.Println("fetching channels...")
 
 	types := []string{"public_channel"}
-	if private {
+	if c.Private {
 		types = append(types, "private_channel")
 	}
 
@@ -98,7 +91,6 @@ func runChannelsAdd(private bool) error {
 		params.Cursor = cursor
 	}
 
-	// Simple interactive filter
 	fmt.Print("filter (enter to show all): ")
 	var filter string
 	fmt.Scanln(&filter)
@@ -140,8 +132,12 @@ func runChannelsAdd(private bool) error {
 	return nil
 }
 
-func runChannelsRm(name string) error {
-	name = strings.TrimPrefix(name, "#")
+type ChannelsRmCmd struct {
+	Name string `arg:"" help:"channel name to stop tracking"`
+}
+
+func (c *ChannelsRmCmd) Run() error {
+	name := strings.TrimPrefix(c.Name, "#")
 	db, err := slkdb.Open()
 	if err != nil {
 		return err

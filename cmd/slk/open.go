@@ -8,12 +8,11 @@ import (
 	slkdb "github.com/stevejackson/slk/internal/db"
 )
 
-func runOpen(args []string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("usage: slk open <ts>")
-	}
-	ts := args[0]
+type OpenCmd struct {
+	Ts string `arg:"" help:"message timestamp"`
+}
 
+func (c *OpenCmd) Run() error {
 	db, err := slkdb.Open()
 	if err != nil {
 		return err
@@ -21,12 +20,12 @@ func runOpen(args []string) error {
 	defer db.Close()
 
 	var channelID string
-	err = db.QueryRow("SELECT channel_id FROM messages WHERE ts=?", ts).Scan(&channelID)
+	err = db.QueryRow("SELECT channel_id FROM messages WHERE ts=?", c.Ts).Scan(&channelID)
 	if err != nil {
-		return fmt.Errorf("message %s not found", ts)
+		return fmt.Errorf("message %s not found", c.Ts)
 	}
 
-	url := slackURL(channelID, ts)
+	url := slackURL(channelID, c.Ts)
 
 	var cmd *exec.Cmd
 	switch runtime.GOOS {

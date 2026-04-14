@@ -31,7 +31,7 @@
 ~~**Problem:** Marking 10 messages read requires 10 separate `slk read <ts>` calls (or chaining with `&&`). Had to manually chain all timestamps.~~
 
 Remaining suggestions:
-- `slk read --channel blogging` — mark entire channel read
+- ~~`slk read --channel blogging`~~ — **done** (also works with `unread --channel`)
 - `slk read --before <ts>` — mark everything before a timestamp as read
 
 ---

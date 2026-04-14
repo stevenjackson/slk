@@ -47,7 +47,7 @@ func setupTestDB(t *testing.T) func() {
 func TestInboxReturnsUnreadOnly(t *testing.T) {
 	setupTestDB(t)()
 
-	msgs := inboxJSON(t, nil)
+	msgs := inboxJSON(t, InboxCmd{})
 	if len(msgs) != 3 {
 		t.Errorf("expected 3 unread, got %d", len(msgs))
 	}
@@ -56,7 +56,7 @@ func TestInboxReturnsUnreadOnly(t *testing.T) {
 func TestInboxChannelFilter(t *testing.T) {
 	setupTestDB(t)()
 
-	msgs := inboxJSON(t, []string{"--channel", "general"})
+	msgs := inboxJSON(t, InboxCmd{Channel: "general"})
 	if len(msgs) != 2 {
 		t.Errorf("expected 2 in #general, got %d", len(msgs))
 	}
@@ -70,7 +70,7 @@ func TestInboxChannelFilter(t *testing.T) {
 func TestInboxMinReplies(t *testing.T) {
 	setupTestDB(t)()
 
-	msgs := inboxJSON(t, []string{"--min-replies", "3"})
+	msgs := inboxJSON(t, InboxCmd{MinReplies: 3})
 	if len(msgs) != 1 {
 		t.Errorf("expected 1 message with 3+ replies, got %d", len(msgs))
 	}
@@ -82,7 +82,7 @@ func TestInboxMinReplies(t *testing.T) {
 func TestInboxAll(t *testing.T) {
 	setupTestDB(t)()
 
-	msgs := inboxJSON(t, []string{"--all"})
+	msgs := inboxJSON(t, InboxCmd{All: true})
 	if len(msgs) != 5 {
 		t.Errorf("expected 5 messages with --all, got %d", len(msgs))
 	}
@@ -91,7 +91,7 @@ func TestInboxAll(t *testing.T) {
 func TestInboxSlackURL(t *testing.T) {
 	setupTestDB(t)()
 
-	msgs := inboxJSON(t, nil)
+	msgs := inboxJSON(t, InboxCmd{})
 	for _, m := range msgs {
 		url, ok := m["slack_url"].(string)
 		if !ok || url == "" {
@@ -105,10 +105,10 @@ func TestInboxSlackURL(t *testing.T) {
 func TestReadSingleMessage(t *testing.T) {
 	setupTestDB(t)()
 
-	if err := runSetStatus([]string{"1000000001.000001"}, "read"); err != nil {
+	if err := setStatus([]string{"1000000001.000001"}, "", "read"); err != nil {
 		t.Fatalf("read: %v", err)
 	}
-	msgs := inboxJSON(t, nil)
+	msgs := inboxJSON(t, InboxCmd{})
 	for _, m := range msgs {
 		if m["ts"] == "1000000001.000001" {
 			t.Error("message should be read, still in inbox")
@@ -119,11 +119,11 @@ func TestReadSingleMessage(t *testing.T) {
 func TestReadBulk(t *testing.T) {
 	setupTestDB(t)()
 
-	err := runSetStatus([]string{"1000000001.000001", "1000000002.000002"}, "read")
+	err := setStatus([]string{"1000000001.000001", "1000000002.000002"}, "", "read")
 	if err != nil {
 		t.Fatalf("bulk read: %v", err)
 	}
-	msgs := inboxJSON(t, nil)
+	msgs := inboxJSON(t, InboxCmd{})
 	if len(msgs) != 1 {
 		t.Errorf("expected 1 unread after bulk read, got %d", len(msgs))
 	}
@@ -132,16 +132,16 @@ func TestReadBulk(t *testing.T) {
 func TestReadChannel(t *testing.T) {
 	setupTestDB(t)()
 
-	err := runSetStatus([]string{"--channel", "general"}, "read")
+	err := setStatus(nil, "general", "read")
 	if err != nil {
 		t.Fatalf("read --channel: %v", err)
 	}
-	msgs := inboxJSON(t, []string{"--channel", "general"})
+	msgs := inboxJSON(t, InboxCmd{Channel: "general"})
 	if len(msgs) != 0 {
 		t.Errorf("expected 0 unread in #general after read --channel, got %d", len(msgs))
 	}
 	// #random should be untouched
-	msgs = inboxJSON(t, []string{"--channel", "random"})
+	msgs = inboxJSON(t, InboxCmd{Channel: "random"})
 	if len(msgs) != 1 {
 		t.Errorf("expected #random untouched, got %d", len(msgs))
 	}
@@ -150,8 +150,8 @@ func TestReadChannel(t *testing.T) {
 func TestReadChannelSkipsPinned(t *testing.T) {
 	setupTestDB(t)()
 
-	runSetStatus([]string{"--channel", "general"}, "read")
-	msgs := inboxJSON(t, []string{"--all", "--channel", "general"})
+	setStatus(nil, "general", "read")
+	msgs := inboxJSON(t, InboxCmd{All: true, Channel: "general"})
 	for _, m := range msgs {
 		if m["ts"] == "1000000005.000005" && m["status"] != "pinned" {
 			t.Error("pinned message should not be touched by read --channel")
@@ -162,10 +162,10 @@ func TestReadChannelSkipsPinned(t *testing.T) {
 func TestUnreadRestoresMessages(t *testing.T) {
 	setupTestDB(t)()
 
-	runSetStatus([]string{"--channel", "general"}, "read")
-	runSetStatus([]string{"--channel", "general"}, "unread")
+	setStatus(nil, "general", "read")
+	setStatus(nil, "general", "unread")
 
-	msgs := inboxJSON(t, []string{"--channel", "general"})
+	msgs := inboxJSON(t, InboxCmd{Channel: "general"})
 	// 3: the 2 originally-unread + the 1 pre-existing read message, all become unread
 	if len(msgs) != 3 {
 		t.Errorf("expected 3 restored to unread, got %d", len(msgs))
@@ -176,7 +176,7 @@ func TestReadNotFound(t *testing.T) {
 	setupTestDB(t)()
 
 	// should not error, just report not found per-ts
-	if err := runSetStatus([]string{"9999999999.000000"}, "read"); err != nil {
+	if err := setStatus([]string{"9999999999.000000"}, "", "read"); err != nil {
 		t.Errorf("unexpected error for missing ts: %v", err)
 	}
 }
@@ -186,7 +186,6 @@ func TestReadNotFound(t *testing.T) {
 func TestShowIncludesSlackURL(t *testing.T) {
 	setupTestDB(t)()
 
-	// capture output via a quick DB query instead of stdout capture
 	db, _ := slkdb.Open()
 	defer db.Close()
 
@@ -200,22 +199,21 @@ func TestShowIncludesSlackURL(t *testing.T) {
 
 // --- helpers ---
 
-func inboxJSON(t *testing.T, args []string) []map[string]any {
+func inboxJSON(t *testing.T, cmd InboxCmd) []map[string]any {
 	t.Helper()
 
-	// redirect stdout to capture JSON
 	r, w, _ := os.Pipe()
 	old := os.Stdout
 	os.Stdout = w
 
-	allArgs := append([]string{"--json"}, args...)
-	err := runInbox(allArgs)
+	cmd.JSON = true
+	err := cmd.Run()
 
 	w.Close()
 	os.Stdout = old
 
 	if err != nil {
-		t.Fatalf("runInbox: %v", err)
+		t.Fatalf("InboxCmd.Run: %v", err)
 	}
 
 	var msgs []map[string]any

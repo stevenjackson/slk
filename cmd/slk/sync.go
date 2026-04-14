@@ -3,25 +3,17 @@ package main
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"time"
 
 	slkdb "github.com/stevejackson/slk/internal/db"
 	slkingest "github.com/stevejackson/slk/internal/slack"
 )
 
-func runSync(args []string) error {
-	days := 7
-	for i, a := range args {
-		if a == "--days" && i+1 < len(args) {
-			n, err := strconv.Atoi(args[i+1])
-			if err != nil {
-				return fmt.Errorf("--days: %w", err)
-			}
-			days = n
-		}
-	}
+type SyncCmd struct {
+	Days int `help:"number of days to sync" default:"7" short:"d"`
+}
 
+func (c *SyncCmd) Run() error {
 	token := os.Getenv("SLACK_USER_TOKEN")
 	if token == "" {
 		return fmt.Errorf("SLACK_USER_TOKEN not set")
@@ -46,8 +38,8 @@ func runSync(args []string) error {
 	defer rows.Close()
 
 	type channel struct {
-		id, name    string
-		lastSynced  *string
+		id, name   string
+		lastSynced *string
 	}
 	var channels []channel
 	for rows.Next() {
@@ -63,11 +55,10 @@ func runSync(args []string) error {
 		return fmt.Errorf("no channels tracked — run: slk channels add")
 	}
 
-	oldest := fmt.Sprintf("%.6f", float64(time.Now().Unix()-int64(days)*86400))
+	oldest := fmt.Sprintf("%.6f", float64(time.Now().Unix()-int64(c.Days)*86400))
 
 	for _, ch := range channels {
 		o := oldest
-		// If we've synced before and it's more recent than the window, start there
 		if ch.lastSynced != nil && *ch.lastSynced > o {
 			o = *ch.lastSynced
 		}

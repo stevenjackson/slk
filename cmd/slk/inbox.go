@@ -29,29 +29,14 @@ func slackURL(channelID, ts string) string {
 	return fmt.Sprintf("https://slack.com/app_redirect?channel=%s&message_ts=%s", channelID, ts)
 }
 
-func runInbox(args []string) error {
-	var channelFilter string
-	var minReplies int
-	asJSON := false
-	showAll := false // include read + pinned
+type InboxCmd struct {
+	Channel    string `help:"filter by channel name" short:"c"`
+	MinReplies int    `help:"minimum reply count" name:"min-replies"`
+	JSON       bool   `help:"output JSON" short:"j"`
+	All        bool   `help:"include read and pinned messages"`
+}
 
-	for i, a := range args {
-		switch a {
-		case "--json":
-			asJSON = true
-		case "--all":
-			showAll = true
-		case "--channel":
-			if i+1 < len(args) {
-				channelFilter = args[i+1]
-			}
-		case "--min-replies":
-			if i+1 < len(args) {
-				fmt.Sscanf(args[i+1], "%d", &minReplies)
-			}
-		}
-	}
-
+func (c *InboxCmd) Run() error {
 	db, err := slkdb.Open()
 	if err != nil {
 		return err
@@ -70,16 +55,16 @@ func runInbox(args []string) error {
 		WHERE 1=1`
 	var params []any
 
-	if !showAll {
+	if !c.All {
 		query += " AND m.status = 'unread'"
 	}
-	if channelFilter != "" {
+	if c.Channel != "" {
 		query += " AND c.name = ?"
-		params = append(params, channelFilter)
+		params = append(params, c.Channel)
 	}
-	if minReplies > 0 {
+	if c.MinReplies > 0 {
 		query += " AND m.reply_count >= ?"
-		params = append(params, minReplies)
+		params = append(params, c.MinReplies)
 	}
 	query += " ORDER BY m.ts ASC"
 
@@ -102,7 +87,7 @@ func runInbox(args []string) error {
 		msgs = append(msgs, m)
 	}
 
-	if asJSON {
+	if c.JSON {
 		enc := json.NewEncoder(out())
 		enc.SetIndent("", "  ")
 		return enc.Encode(msgs)
@@ -152,9 +137,9 @@ func resolveUser(id string, userMap map[string]string) string {
 }
 
 var (
-	mentionRE = regexp.MustCompile(`<@(U[A-Z0-9]+)>`)
-	linkRE    = regexp.MustCompile(`<([^|>]+)(?:\|([^>]*))?>>?`)
-	channelRE = regexp.MustCompile(`<#[A-Z0-9]+\|([^>]+)>`)
+	mentionRE   = regexp.MustCompile(`<@(U[A-Z0-9]+)>`)
+	linkRE      = regexp.MustCompile(`<([^|>]+)(?:\|([^>]*))?>>?`)
+	channelRE   = regexp.MustCompile(`<#[A-Z0-9]+\|([^>]+)>`)
 	broadcastRE = regexp.MustCompile(`<!(\w+)>`)
 )
 
