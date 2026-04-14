@@ -8,9 +8,8 @@ import (
 
 func runSetStatus(args []string, status string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: slk %s <ts>", status)
+		return fmt.Errorf("usage: slk %s <ts> [<ts>...]", status)
 	}
-	ts := args[0]
 
 	db, err := slkdb.Open()
 	if err != nil {
@@ -18,14 +17,17 @@ func runSetStatus(args []string, status string) error {
 	}
 	defer db.Close()
 
-	res, err := db.Exec("UPDATE messages SET status=? WHERE ts=?", status, ts)
-	if err != nil {
-		return err
+	for _, ts := range args {
+		res, err := db.Exec("UPDATE messages SET status=? WHERE ts=?", status, ts)
+		if err != nil {
+			return err
+		}
+		n, _ := res.RowsAffected()
+		if n == 0 {
+			fmt.Printf("%s → not found\n", ts)
+			continue
+		}
+		fmt.Printf("%s → %s\n", ts, status)
 	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("message %s not found", ts)
-	}
-	fmt.Printf("%s → %s\n", ts, status)
 	return nil
 }

@@ -55,9 +55,9 @@ Usage:
   slk inbox [--channel name] [--min-replies N] [--json] [--all]
                                     show unread messages
   slk show <ts> [--json]            show message + thread
-  slk read <ts>                     mark message as read
-  slk pin <ts>                      pin message (never archived)
-  slk unpin <ts>                    unpin message (back to read)
+  slk read <ts> [<ts>...]           mark messages as read
+  slk pin <ts> [<ts>...]            pin messages (never archived)
+  slk unpin <ts> [<ts>...]          unpin messages (back to read)
   slk open <ts>                     open message in Slack (browser)
   slk channels                      list tracked channels
   slk channels add [--private]      add a channel to track (--private requires groups:read scope)
