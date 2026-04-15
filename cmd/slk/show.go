@@ -46,10 +46,13 @@ func (c *ShowCmd) Run() error {
 		return fmt.Errorf("message %s not found", c.Ts)
 	}
 
+	var workspaceURL string
+	db.QueryRow("SELECT value FROM config WHERE key='workspace_url'").Scan(&workspaceURL)
+
 	m.Author = resolveUser(m.UserID, userMap)
 	m.Text = cleanMarkup(m.Text, userMap)
 	m.Time = formatTS(m.TS)
-	m.SlackURL = slackURL(m.ChannelID, m.TS)
+	m.SlackURL = slackURL(workspaceURL, m.ChannelID, m.TS)
 
 	var rawReplies []json.RawMessage
 	json.Unmarshal([]byte(repliesJSON), &rawReplies)

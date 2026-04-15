@@ -22,6 +22,28 @@ func NewIngester(token string, db *sql.DB) *Ingester {
 	}
 }
 
+// SyncWorkspace fetches and stores the workspace URL via auth.test.
+// Skips if already stored unless force=true.
+func (g *Ingester) SyncWorkspace(force bool) error {
+	if !force {
+		var count int
+		g.db.QueryRow("SELECT COUNT(*) FROM config WHERE key='workspace_url'").Scan(&count)
+		if count > 0 {
+			return nil
+		}
+	}
+	resp, err := g.client.AuthTest()
+	if err != nil {
+		return fmt.Errorf("auth.test: %w", err)
+	}
+	_, err = g.db.Exec(
+		`INSERT INTO config(key,value) VALUES('workspace_url',?)
+		 ON CONFLICT(key) DO UPDATE SET value=excluded.value`,
+		resp.URL,
+	)
+	return err
+}
+
 // SyncUsers fetches and caches workspace users. Skips if already populated
 // unless force=true.
 func (g *Ingester) SyncUsers(force bool) error {

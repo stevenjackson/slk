@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	_ "modernc.org/sqlite"
 )
@@ -28,13 +29,15 @@ func Open() (*sql.DB, error) {
 }
 
 func dbPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
 	p := os.Getenv("SLK_DB")
 	if p == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
 		p = filepath.Join(home, ".slk", "slk.db")
+	} else if strings.HasPrefix(p, "~/") {
+		p = filepath.Join(home, p[2:])
 	}
 	if err := os.MkdirAll(filepath.Dir(p), 0700); err != nil {
 		return "", fmt.Errorf("create db dir: %w", err)
@@ -71,6 +74,11 @@ func migrate(db *sql.DB) error {
 	CREATE INDEX IF NOT EXISTS idx_messages_channel  ON messages(channel_id);
 	CREATE INDEX IF NOT EXISTS idx_messages_status   ON messages(status);
 	CREATE INDEX IF NOT EXISTS idx_messages_ts       ON messages(ts);
+
+	CREATE TABLE IF NOT EXISTS config (
+		key   TEXT PRIMARY KEY,
+		value TEXT NOT NULL
+	);
 	`)
 	return err
 }

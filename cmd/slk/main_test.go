@@ -191,7 +191,7 @@ func TestShowIncludesSlackURL(t *testing.T) {
 
 	var channelID string
 	db.QueryRow("SELECT channel_id FROM messages WHERE ts=?", "1000000001.000001").Scan(&channelID)
-	url := slackURL(channelID, "1000000001.000001")
+	url := slackURL("https://testdouble.slack.com/", channelID, "1000000001.000001")
 	if url == "" {
 		t.Error("slackURL returned empty string")
 	}

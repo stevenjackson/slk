@@ -25,8 +25,9 @@ type Message struct {
 	SlackURL    string `json:"slack_url"`
 }
 
-func slackURL(channelID, ts string) string {
-	return fmt.Sprintf("https://slack.com/app_redirect?channel=%s&message_ts=%s", channelID, ts)
+func slackURL(workspaceURL, channelID, ts string) string {
+	p := "p" + strings.ReplaceAll(ts, ".", "")
+	return fmt.Sprintf("%sarchives/%s/%s", workspaceURL, channelID, p)
 }
 
 type InboxCmd struct {
@@ -42,6 +43,9 @@ func (c *InboxCmd) Run() error {
 		return err
 	}
 	defer db.Close()
+
+	var workspaceURL string
+	db.QueryRow("SELECT value FROM config WHERE key='workspace_url'").Scan(&workspaceURL)
 
 	userMap, err := loadUsers(db)
 	if err != nil {
@@ -83,7 +87,7 @@ func (c *InboxCmd) Run() error {
 		m.Author = resolveUser(m.UserID, userMap)
 		m.Text = cleanMarkup(m.Text, userMap)
 		m.Time = formatTS(m.TS)
-		m.SlackURL = slackURL(m.ChannelID, m.TS)
+		m.SlackURL = slackURL(workspaceURL, m.ChannelID, m.TS)
 		msgs = append(msgs, m)
 	}
 

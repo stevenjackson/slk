@@ -25,7 +25,10 @@ func (c *OpenCmd) Run() error {
 		return fmt.Errorf("message %s not found", c.Ts)
 	}
 
-	url := slackURL(channelID, c.Ts)
+	var workspaceURL string
+	db.QueryRow("SELECT value FROM config WHERE key='workspace_url'").Scan(&workspaceURL)
+
+	url := slackURL(workspaceURL, channelID, c.Ts)
 
 	var cmd *exec.Cmd
 	switch runtime.GOOS {

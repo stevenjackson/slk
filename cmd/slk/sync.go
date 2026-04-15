@@ -27,6 +27,10 @@ func (c *SyncCmd) Run() error {
 
 	ingester := slkingest.NewIngester(token, db)
 
+	if err := ingester.SyncWorkspace(false); err != nil {
+		return err
+	}
+
 	if err := ingester.SyncUsers(false); err != nil {
 		return err
 	}
