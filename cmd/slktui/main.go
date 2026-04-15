@@ -248,20 +248,21 @@ func (m model) viewList() string {
 
 	for i := start; i < end; i++ {
 		t := m.threads[i]
+		indicator := noiseLabel(noiseScore(t))
 		channel := channelStyle.Render("#" + t.ChannelName)
 		author := t.Author
 		replies := ""
 		if t.ReplyCount > 0 {
 			replies = replyCountStyle.Render(fmt.Sprintf(" [%d]", t.ReplyCount))
 		}
-		first := firstLine(t.Text, m.width-40)
+		first := firstLine(t.Text, m.width-44)
 		time := dimStyle.Render(slkdb.FormatTime(t.TS))
 
-		line := fmt.Sprintf("%-18s  %-16s  %s%s  %s", time, channel, author, replies, first)
+		line := fmt.Sprintf("%s %-18s  %-16s  %s%s  %s", indicator, time, channel, author, replies, first)
 		if i == m.cursor {
-			b.WriteString(selectedStyle.Render("> "+line) + "\n")
+			b.WriteString(selectedStyle.Render(">"+line) + "\n")
 		} else {
-			b.WriteString(normalStyle.Render("  "+line) + "\n")
+			b.WriteString(normalStyle.Render(" "+line) + "\n")
 		}
 	}
 
