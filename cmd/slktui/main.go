@@ -59,6 +59,9 @@ type model struct {
 	viewport viewport.Model
 	width    int
 	height   int
+	renderer *glamour.TermRenderer
+	cache    map[string]string            // ts → rendered card
+	unfurls  map[string]map[string]string // ts → (url → tweet text)
 	err      error
 }
 
@@ -75,6 +78,8 @@ func initialModel() (model, error) {
 	return model{
 		db:      db,
 		threads: threads,
+		cache:   make(map[string]string),
+		unfurls: make(map[string]map[string]string),
 	}, nil
 }
 
@@ -91,7 +96,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.viewport = viewport.New(msg.Width, msg.Height-3)
+		// Rebuild renderer and clear cache on resize — word wrap width changed
+		m.renderer, _ = glamour.NewTermRenderer(
+			glamour.WithAutoStyle(),
+			glamour.WithWordWrap(msg.Width),
+		)
+		m.cache = make(map[string]string)
 		if m.mode == cardView && len(m.threads) > 0 {
+			m.viewport.SetContent(m.renderCard(m.threads[m.cursor]))
+		}
+
+	case unfurledMsg:
+		m.unfurls[msg.ts] = msg.unfurls
+		delete(m.cache, msg.ts) // invalidate so card re-renders with tweet text
+		if m.mode == cardView && len(m.threads) > 0 && m.threads[m.cursor].TS == msg.ts {
 			m.viewport.SetContent(m.renderCard(m.threads[m.cursor]))
 		}
 
@@ -132,9 +150,11 @@ func (m model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "enter", " ":
 		if len(m.threads) > 0 {
+			t := m.threads[m.cursor]
 			m.mode = cardView
-			m.viewport.SetContent(m.renderCard(m.threads[m.cursor]))
+			m.viewport.SetContent(m.renderCard(t))
 			m.viewport.GotoTop()
+			return m, fetchUnfurls(t)
 		}
 
 	case "r":
@@ -264,29 +284,32 @@ func (m model) viewCard() string {
 	return b.String()
 }
 
-func (m model) renderCard(t slkdb.Thread) string {
+func (m *model) renderCard(t slkdb.Thread) string {
+	if cached, ok := m.cache[t.TS]; ok {
+		return cached
+	}
+
+	threadUnfurls := m.unfurls[t.TS]
+
 	var md strings.Builder
-
-	md.WriteString(t.Text)
-
+	md.WriteString(inlineUnfurls(t.Text, threadUnfurls))
 	if len(t.Replies) > 0 {
 		md.WriteString(fmt.Sprintf("\n\n---\n*%d replies*\n\n", len(t.Replies)))
 		for _, r := range t.Replies {
-			md.WriteString(fmt.Sprintf("**%s**: %s\n\n", r.Author, r.Text))
+			md.WriteString(fmt.Sprintf("**%s**: %s\n\n", r.Author, inlineUnfurls(r.Text, threadUnfurls)))
 		}
 	}
 
-	renderer, err := glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(m.width),
-	)
-	if err != nil {
+	if m.renderer == nil {
+		m.cache[t.TS] = md.String()
 		return md.String()
 	}
-	out, err := renderer.Render(md.String())
+	out, err := m.renderer.Render(md.String())
 	if err != nil {
+		m.cache[t.TS] = md.String()
 		return md.String()
 	}
+	m.cache[t.TS] = out
 	return out
 }
 
