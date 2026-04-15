@@ -1,5 +1,6 @@
-# Binary (root only, not cmd/slk/)
+# Binary
 /slk
+/slktui
 
 # Environment / credentials
 .env

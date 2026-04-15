@@ -1,11 +1,17 @@
 # slk
 
-A CLI for browsing Slack messages from the terminal. Pulls channel history into a local SQLite database so you can read, search, and pipe to other tools without hitting the API constantly.
+Two tools for managing Slack without the noise:
+
+- **`slk`** — CLI for syncing, reading, and piping Slack messages
+- **`slktui`** — Terminal UI for triaging your inbox one thread at a time
 
 ```
 slk inbox | head -20
 slk show 1712345678.123456 --json | claude "summarize this thread"
+slktui   # keyboard-driven inbox triage
 ```
+
+Both tools share the same SQLite database at `~/.slk/slk.db`.
 
 ## Install
 
@@ -14,14 +20,22 @@ slk show 1712345678.123456 --json | claude "summarize this thread"
 ```sh
 git clone https://github.com/stevejackson/slk
 cd slk
+make build        # builds both slk and slktui
+make install      # copies both to /usr/local/bin
+```
+
+Or build individually:
+
+```sh
 go build -o slk ./cmd/slk
-mv slk /usr/local/bin/
+go build -o slktui ./cmd/slktui
 ```
 
 Or install directly:
 
 ```sh
 go install github.com/stevejackson/slk/cmd/slk@latest
+go install github.com/stevejackson/slk/cmd/slktui@latest
 ```
 
 ## Setup
@@ -127,6 +141,27 @@ slk inbox --all --json | jq 'group_by(.channel_name) | map({channel: .[0].channe
 
 # Find messages mentioning a keyword
 slk inbox --all --json | jq '.[] | select(.text | test("deploy"; "i"))'
+```
+
+## slktui
+
+A full-screen terminal UI for working through your inbox. Run `slktui` after syncing.
+
+**List view**
+```
+j / k       navigate
+enter       open thread
+r           mark read
+q           quit
+```
+
+**Card view** — full thread text and all replies rendered as markdown
+```
+j / k       scroll
+r           mark read, return to list
+o           open in Slack
+esc         back to list
+q           quit
 ```
 
 ## Data
