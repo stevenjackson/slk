@@ -52,6 +52,18 @@ Mark everything before a timestamp as read. Useful for bulk-clearing old noise w
 
 ---
 
+### `slktui` capture action
+
+Save current thread to notebook vault as a markdown file. Key `c` in card view. Needs `LIBRARY_PATH` env var (same as old slack-vac-tui). File should include author, timestamp, channel, full text, and replies.
+
+---
+
+### `slktui` defer action
+
+Skip a thread for now without marking it read — keep it in inbox but move past it. Key `d` in card or list view. Could bump the thread to the end of the list, or just advance cursor without any status change.
+
+---
+
 ## Done
 
 - **Slack deep links** — `slack_url` in `slk show` and `slk inbox --json`. `slk open` uses shared helper.
