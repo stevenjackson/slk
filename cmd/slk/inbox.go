@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -19,6 +20,7 @@ type Message struct {
 	UserID      string `json:"user_id"`
 	Author      string `json:"author"`
 	Text        string `json:"text"`
+	URLDomain   string `json:"url_domain,omitempty"`
 	ReplyCount  int    `json:"reply_count"`
 	Status      string `json:"status"`
 	Time        string `json:"time"`
@@ -85,6 +87,7 @@ func (c *InboxCmd) Run() error {
 			return err
 		}
 		m.Author = resolveUser(m.UserID, userMap)
+		m.URLDomain = firstURLDomain(m.Text)
 		m.Text = cleanMarkup(m.Text, userMap)
 		m.Time = formatTS(m.TS)
 		m.SlackURL = slackURL(workspaceURL, m.ChannelID, m.TS)
@@ -112,8 +115,12 @@ func (c *InboxCmd) Run() error {
 			replies = fmt.Sprintf(" [%d replies]", m.ReplyCount)
 		}
 		text := firstLine(m.Text, 80)
-		fmt.Printf("%s  %-16s  #%-20s  %-20s  %s%s%s\n",
-			m.TS, m.Time, m.ChannelName, m.Author, text, replies, status)
+		domain := ""
+		if m.URLDomain != "" {
+			domain = fmt.Sprintf(" [%s]", m.URLDomain)
+		}
+		fmt.Printf("%s  %-16s  #%-20s  %-20s  %s%s%s%s\n",
+			m.TS, m.Time, m.ChannelName, m.Author, text, domain, replies, status)
 	}
 	return nil
 }
@@ -194,6 +201,21 @@ func formatTS(ts string) string {
 		return ts
 	}
 	return time.Unix(int64(f), 0).Format("2006-01-02 15:04")
+}
+
+var rawURLRE = regexp.MustCompile(`<(https?://[^|> ]+)`)
+
+func firstURLDomain(rawText string) string {
+	m := rawURLRE.FindStringSubmatch(rawText)
+	if m == nil {
+		return ""
+	}
+	u, err := url.Parse(m[1])
+	if err != nil {
+		return ""
+	}
+	host := strings.TrimPrefix(u.Hostname(), "www.")
+	return host
 }
 
 func firstLine(s string, max int) string {
