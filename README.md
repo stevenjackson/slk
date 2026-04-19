@@ -94,6 +94,7 @@ Sync is incremental — subsequent runs only fetch messages newer than the last 
 ```sh
 slk inbox                          # all unread, newest first
 slk inbox --channel engineering    # filter by channel
+slk inbox --min-replies 3          # only threads with 3+ replies
 slk inbox --all                    # include read and pinned messages
 slk inbox --json                   # machine-readable output
 ```
@@ -157,11 +158,13 @@ q           quit
 
 **Card view** — full thread text and all replies rendered as markdown
 ```
-j / k       scroll
-r           mark read, return to list
-o           open in Slack
-esc         back to list
-q           quit
+j / k           scroll
+ctrl+d / ctrl+u half-page scroll
+n / p           next / prev thread
+r               mark read, advance to next
+o               open in Slack
+esc             back to list
+q               quit
 ```
 
 ## Data

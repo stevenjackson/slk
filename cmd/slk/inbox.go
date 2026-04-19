@@ -184,17 +184,6 @@ func cleanMarkup(text string, userMap map[string]string) string {
 	return text
 }
 
-// replaceMentions is kept for callers that only need mention resolution.
-func replaceMentions(text string, userMap map[string]string) string {
-	return mentionRE.ReplaceAllStringFunc(text, func(s string) string {
-		uid := mentionRE.FindStringSubmatch(s)[1]
-		if name, ok := userMap[uid]; ok {
-			return "@" + name
-		}
-		return s
-	})
-}
-
 func formatTS(ts string) string {
 	f, err := strconv.ParseFloat(ts, 64)
 	if err != nil {

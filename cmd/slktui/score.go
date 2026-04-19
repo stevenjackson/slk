@@ -28,11 +28,6 @@ func noiseScore(t slkdb.Thread) float64 {
 		return 0.95
 	}
 
-	// Claude being funny: screenshot/quote of Claude saying something
-	if isClaudeFunny(text) {
-		return 0.9
-	}
-
 	// Joke/meme thread: laugh indicators in replies even if root post looks neutral
 	if isJokeThread(t) {
 		return 0.85
@@ -52,11 +47,6 @@ func noiseScore(t slkdb.Thread) float64 {
 		score += 0.3
 	}
 
-	// davemo + 0 replies — frequent pattern
-	if strings.EqualFold(t.Author, "davemo") && t.ReplyCount == 0 {
-		score += 0.15
-	}
-
 	// Single-line reaction / very short text with no URL
 	if isSingleLineReaction(text) {
 		score += 0.40
@@ -71,18 +61,8 @@ func noiseScore(t slkdb.Thread) float64 {
 		score -= 0.15
 	}
 
-	// skills-internal mention
-	if strings.Contains(text, "skills-internal") {
-		score -= 0.4
-	}
-
-	// PR or skill announcement
+	// PR announcement
 	if prAnnouncementRE.MatchString(text) {
-		score -= 0.3
-	}
-
-	// Rate limit / operational warning
-	if operationalRE.MatchString(text) {
 		score -= 0.3
 	}
 
@@ -124,16 +104,6 @@ func isCrossPost(text string) bool {
 	return len(strings.TrimSpace(stripped)) < 30
 }
 
-var claudeFunnyRE = regexp.MustCompile(`(?i)(lol|:rolling_on_the_floor_laughing:|:laughing:|spring break|coffee break|go enjoy your evening|on spring break)`)
-
-func isClaudeFunny(text string) bool {
-	// Short text with a laugh indicator — likely a Claude screenshot/reaction
-	if len(text) > 300 {
-		return false
-	}
-	return claudeFunnyRE.MatchString(text)
-}
-
 var urlRE = regexp.MustCompile(`https?://\S+`)
 var attachmentRE = regexp.MustCompile(`\[attachment:[^\]]+\]`)
 
@@ -170,8 +140,7 @@ func isJokeThread(t slkdb.Thread) bool {
 	return jokeCount >= 2
 }
 
-var prAnnouncementRE = regexp.MustCompile(`(?i)(opened a PR|pull request|skills-internal|skill.*#\d+)`)
-var operationalRE = regexp.MustCompile(`(?i)(rate limit|peak hours|500 error|outage|degraded)`)
+var prAnnouncementRE = regexp.MustCompile(`(?i)(opened a PR|pull request)`)
 
 func clamp(v, min, max float64) float64 {
 	if v < min {
