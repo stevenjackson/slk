@@ -13,6 +13,11 @@ func noiseScore(t slkdb.Thread) float64 {
 
 	// --- certain noise ---
 
+	// Automated bot messages
+	if strings.EqualFold(t.Author, "slackbot") {
+		return 1.0
+	}
+
 	// Image-only: no real text, just a file attachment
 	if isImageOnly(text) {
 		return 1.0
@@ -26,6 +31,11 @@ func noiseScore(t slkdb.Thread) float64 {
 	// Claude being funny: screenshot/quote of Claude saying something
 	if isClaudeFunny(text) {
 		return 0.9
+	}
+
+	// Joke/meme thread: laugh indicators in replies even if root post looks neutral
+	if isJokeThread(t) {
+		return 0.85
 	}
 
 	// --- accumulate score ---
@@ -49,7 +59,7 @@ func noiseScore(t slkdb.Thread) float64 {
 
 	// Single-line reaction / very short text with no URL
 	if isSingleLineReaction(text) {
-		score += 0.25
+		score += 0.40
 	}
 
 	// --- signal reducers ---
@@ -58,7 +68,7 @@ func noiseScore(t slkdb.Thread) float64 {
 	if t.ReplyCount >= 10 {
 		score -= 0.5
 	} else if t.ReplyCount >= 5 {
-		score -= 0.25
+		score -= 0.15
 	}
 
 	// skills-internal mention
@@ -144,6 +154,20 @@ func isSingleLineReaction(text string) bool {
 		return false
 	}
 	return len(text) < 80
+}
+
+var jokeRE = regexp.MustCompile(`(?i)(lol|:laughing:|:rolling_on_the_floor_laughing:|:joy:|the onion|joke|lmao|haha|:rofl:)`)
+
+// isJokeThread returns true when reply content signals a meme/joke thread
+// even if the root post looks neutral.
+func isJokeThread(t slkdb.Thread) bool {
+	jokeCount := 0
+	for _, r := range t.Replies {
+		if jokeRE.MatchString(r.Text) {
+			jokeCount++
+		}
+	}
+	return jokeCount >= 2
 }
 
 var prAnnouncementRE = regexp.MustCompile(`(?i)(opened a PR|pull request|skills-internal|skill.*#\d+)`)
