@@ -184,10 +184,16 @@ func (m model) updateCard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			t := m.threads[m.cursor]
 			slkdb.SetStatus(m.db, t.TS, "read")
 			m.threads = append(m.threads[:m.cursor], m.threads[m.cursor+1:]...)
-			if m.cursor > 0 && m.cursor >= len(m.threads) {
+			if m.cursor >= len(m.threads) {
 				m.cursor = len(m.threads) - 1
 			}
-			m.mode = listView
+			if len(m.threads) == 0 {
+				m.mode = listView
+			} else {
+				m.viewport.SetContent(m.renderCard(m.threads[m.cursor]))
+				m.viewport.GotoTop()
+				return m, fetchUnfurls(m.threads[m.cursor])
+			}
 		}
 
 	case "ctrl+d":
@@ -195,6 +201,22 @@ func (m model) updateCard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "ctrl+u":
 		m.viewport.HalfPageUp()
+
+	case "n":
+		if m.cursor < len(m.threads)-1 {
+			m.cursor++
+			m.viewport.SetContent(m.renderCard(m.threads[m.cursor]))
+			m.viewport.GotoTop()
+			return m, fetchUnfurls(m.threads[m.cursor])
+		}
+
+	case "p":
+		if m.cursor > 0 {
+			m.cursor--
+			m.viewport.SetContent(m.renderCard(m.threads[m.cursor]))
+			m.viewport.GotoTop()
+			return m, fetchUnfurls(m.threads[m.cursor])
+		}
 
 	case "o":
 		if len(m.threads) > 0 {
@@ -281,7 +303,7 @@ func (m model) viewCard() string {
 	)
 	b.WriteString(header + "\n")
 	b.WriteString(m.viewport.View())
-	b.WriteString("\n" + helpStyle.Render("j/k scroll  r read  o open  esc back  q quit"))
+	b.WriteString("\n" + helpStyle.Render("j/k scroll  n/p next/prev  r read  o open  esc back  q quit"))
 	return b.String()
 }
 

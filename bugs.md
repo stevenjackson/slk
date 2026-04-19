@@ -60,7 +60,7 @@ Save current thread to notebook vault as a markdown file. Key `c` in card view. 
 
 ### `slktui` defer action
 
-Skip a thread for now without marking it read — keep it in inbox but move past it. Key `d` in card or list view. Could bump the thread to the end of the list, or just advance cursor without any status change.
+~~Skip a thread for now without marking it read~~ — implemented as `n`/`p` in card view for next/prev navigation with no status change. Remaining question: should `d` explicitly bump a thread to the end of the list so it resurfaces later?
 
 ---
 
