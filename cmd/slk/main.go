@@ -7,6 +7,7 @@ import (
 
 var cli struct {
 	Sync     SyncCmd     `cmd:"" help:"pull messages into local DB"`
+	Fetch    FetchCmd    `cmd:"" help:"fetch a specific message by Slack URL"`
 	Inbox    InboxCmd    `cmd:"" help:"show unread messages"`
 	Show     ShowCmd     `cmd:"" help:"show message + thread"`
 	Read     ReadCmd     `cmd:"" help:"mark messages as read"`

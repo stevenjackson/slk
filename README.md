@@ -8,6 +8,7 @@ Two tools for managing Slack without the noise:
 ```
 slk inbox | head -20
 slk show 1712345678.123456 --json | claude "summarize this thread"
+slk fetch https://yourworkspace.slack.com/archives/C.../p...
 slktui   # keyboard-driven inbox triage
 ```
 
@@ -88,6 +89,14 @@ slk sync --days 30     # pull last 30 days
 ```
 
 Sync is incremental — subsequent runs only fetch messages newer than the last sync. Threads are fetched automatically when a message has replies.
+
+### Fetching a specific message
+
+```sh
+slk fetch https://yourworkspace.slack.com/archives/C.../p...
+```
+
+Paste any Slack message link to pull that message and its full thread into the local DB. The message appears in `slk inbox` as unread. Works with both top-level messages and links to replies within a thread. The channel is added to the DB automatically if it isn't tracked yet (it won't be included in future syncs unless you add it with `slk channels add`).
 
 ### Reading messages
 

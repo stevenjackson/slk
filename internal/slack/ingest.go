@@ -217,6 +217,93 @@ func extractText(msg slack.Msg) string {
 	return text
 }
 
+// FetchMessage fetches a single message and its thread by channel ID and
+// timestamp, upserting into the DB. The channel is created if not tracked.
+func (g *Ingester) FetchMessage(channelID, ts string) error {
+	if err := g.ensureChannel(channelID); err != nil {
+		return err
+	}
+
+	params := &slack.GetConversationHistoryParameters{
+		ChannelID: channelID,
+		Latest:    ts,
+		Oldest:    ts,
+		Inclusive: true,
+		Limit:     1,
+	}
+	resp, err := g.client.GetConversationHistory(params)
+	if err != nil {
+		return fmt.Errorf("conversations.history: %w", err)
+	}
+	if len(resp.Messages) == 0 {
+		return fmt.Errorf("message not found: %s in %s", ts, channelID)
+	}
+
+	msg := resp.Messages[0]
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	userID := msg.User
+	if userID == "" {
+		userID = msg.BotID
+	}
+
+	text := extractText(msg.Msg)
+	replyCount := msg.ReplyCount
+	repliesJSON := "[]"
+
+	if replyCount > 0 {
+		replies, err := g.fetchThread(channelID, ts)
+		if err != nil {
+			fmt.Printf("  warn: thread %s: %v\n", ts, err)
+		} else if len(replies) > 1 {
+			b, _ := json.Marshal(replies[1:])
+			repliesJSON = string(b)
+			parent := replies[0]
+			text = extractText(parent)
+			if parent.User != "" {
+				userID = parent.User
+			}
+		}
+	}
+
+	_, err = g.db.Exec(`
+		INSERT INTO messages(ts, channel_id, user_id, text, reply_count, replies_json, status, synced_at)
+		VALUES(?,?,?,?,?,?,'unread',?)
+		ON CONFLICT(ts) DO UPDATE SET
+			text         = excluded.text,
+			user_id      = excluded.user_id,
+			reply_count  = excluded.reply_count,
+			replies_json = excluded.replies_json,
+			synced_at    = excluded.synced_at,
+			status = CASE
+				WHEN text != excluded.text OR replies_json != excluded.replies_json THEN 'unread'
+				ELSE status
+			END`,
+		ts, channelID, userID, text, replyCount, repliesJSON, now,
+	)
+	return err
+}
+
+// ensureChannel upserts a channel into the DB, fetching its name from Slack if missing.
+func (g *Ingester) ensureChannel(channelID string) error {
+	var count int
+	g.db.QueryRow("SELECT COUNT(*) FROM channels WHERE id=?", channelID).Scan(&count)
+	if count > 0 {
+		return nil
+	}
+	ch, err := g.client.GetConversationInfo(&slack.GetConversationInfoInput{
+		ChannelID: channelID,
+	})
+	if err != nil {
+		return fmt.Errorf("conversations.info %s: %w", channelID, err)
+	}
+	_, err = g.db.Exec(
+		`INSERT INTO channels(id,name) VALUES(?,?) ON CONFLICT(id) DO NOTHING`,
+		channelID, ch.Name,
+	)
+	return err
+}
+
 func tsFloat(ts string) float64 {
 	f, _ := strconv.ParseFloat(ts, 64)
 	return f
