@@ -84,7 +84,6 @@ func noiseLabel(score float64) string {
 // --- classifiers ---
 
 var imageFileRE = regexp.MustCompile(`(?i)\[file:[^\]]+image/[^\]]+\]`)
-var fileOnlyRE = regexp.MustCompile(`(?i)^\s*(\[file:[^\]]+\]\s*)*$`)
 
 func isImageOnly(text string) bool {
 	// Text is empty or contains only file attachment markers

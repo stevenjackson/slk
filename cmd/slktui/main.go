@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 
+	slkconfig "github.com/stevejackson/slk/internal/config"
 	slkdb "github.com/stevejackson/slk/internal/db"
 )
 
@@ -365,6 +366,7 @@ func openURL(url string) {
 // --- main ---
 
 func main() {
+	slkconfig.Load()
 	m, err := initialModel()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

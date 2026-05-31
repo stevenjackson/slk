@@ -8,9 +8,8 @@ build-slk:
 build-slktui:
 	go build -o slktui ./cmd/slktui
 
-install: build
-	cp slk /usr/local/bin/slk
-	cp slktui /usr/local/bin/slktui
+install:
+	go install ./cmd/slk ./cmd/slktui
 
 clean:
 	rm -f slk slktui

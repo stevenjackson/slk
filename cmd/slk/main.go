@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/alecthomas/kong"
-	"github.com/joho/godotenv"
+	slkconfig "github.com/stevejackson/slk/internal/config"
 )
 
 var cli struct {
@@ -18,7 +18,7 @@ var cli struct {
 }
 
 func main() {
-	godotenv.Load()
+	slkconfig.Load()
 	ctx := kong.Parse(&cli,
 		kong.Name("slk"),
 		kong.Description("Slack message browser for the terminal.\n\nEnvironment:\n  SLACK_USER_TOKEN    required (xoxp-...)\n  SLK_DB              path to sqlite DB (default: ~/.slk/slk.db)"),

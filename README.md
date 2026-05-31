@@ -21,7 +21,7 @@ Both tools share the same SQLite database at `~/.slk/slk.db`.
 git clone https://github.com/stevejackson/slk
 cd slk
 make build        # builds both slk and slktui
-make install      # copies both to /usr/local/bin
+make install      # installs both to $(go env GOPATH)/bin
 ```
 
 Or build individually:
@@ -37,6 +37,8 @@ Or install directly:
 go install github.com/stevejackson/slk/cmd/slk@latest
 go install github.com/stevejackson/slk/cmd/slktui@latest
 ```
+
+> **Note:** `go install` places binaries in `$GOPATH/bin` (usually `~/go/bin`). Make sure that's in your `$PATH` — e.g. add `export PATH="$HOME/go/bin:$PATH"` to your shell profile.
 
 ## Setup
 
@@ -60,16 +62,14 @@ Required OAuth scopes:
 
 ### 2. Configure
 
-```sh
-cp .env.example .env
-# edit .env and set SLACK_USER_TOKEN=xoxp-...
-```
-
-Or set the environment variable directly:
+Create `~/.slk/config` (plain `KEY=value` format):
 
 ```sh
-export SLACK_USER_TOKEN=xoxp-...
+SLACK_USER_TOKEN=xoxp-...
+# SLK_DB=~/.slk/slk.db   # optional, this is the default
 ```
+
+Both `slk` and `slktui` load this file automatically on startup. Environment variables take precedence if already set.
 
 ### 3. Track channels and sync
 
