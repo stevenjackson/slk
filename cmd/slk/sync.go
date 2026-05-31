@@ -35,20 +35,19 @@ func (c *SyncCmd) Run() error {
 		return err
 	}
 
-	rows, err := db.Query("SELECT id, name, last_synced_ts FROM channels")
+	rows, err := db.Query("SELECT id, name FROM channels")
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 
 	type channel struct {
-		id, name   string
-		lastSynced *string
+		id, name string
 	}
 	var channels []channel
 	for rows.Next() {
 		var ch channel
-		if err := rows.Scan(&ch.id, &ch.name, &ch.lastSynced); err != nil {
+		if err := rows.Scan(&ch.id, &ch.name); err != nil {
 			return err
 		}
 		channels = append(channels, ch)
@@ -62,11 +61,7 @@ func (c *SyncCmd) Run() error {
 	oldest := fmt.Sprintf("%.6f", float64(time.Now().Unix()-int64(c.Days)*86400))
 
 	for _, ch := range channels {
-		o := oldest
-		if ch.lastSynced != nil && *ch.lastSynced > o {
-			o = *ch.lastSynced
-		}
-		if err := ingester.SyncChannel(ch.id, ch.name, o); err != nil {
+		if err := ingester.SyncChannel(ch.id, ch.name, oldest); err != nil {
 			fmt.Fprintf(os.Stderr, "warn: #%s: %v\n", ch.name, err)
 		}
 	}
