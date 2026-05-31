@@ -2,6 +2,18 @@
 
 ---
 
+### `slk search` — full-text search via FTS5
+
+SQLite supports FTS5 natively. Schema change + one virtual table index on `messages.text`. Would enable `slk search "deploy failed"` without any API calls. Low cost, high value.
+
+---
+
+### goreleaser — pre-built binaries on GitHub Releases
+
+Add `.goreleaser.yaml` + GitHub Actions workflow to publish cross-platform binaries on each release. Makes `slk`/`slktui` installable without Go. Two binaries: `cmd/slk` and `cmd/slktui`. ~30 lines of config.
+
+---
+
 ### `inbox` output too large for direct consumption
 
 **Problem:** `slk inbox --json` with 333+ unread messages outputs ~200KB+ of JSON. Piping directly to Claude or reading in context hits limits.
