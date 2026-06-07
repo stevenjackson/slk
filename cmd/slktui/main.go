@@ -53,17 +53,20 @@ const (
 )
 
 type model struct {
-	db       *sql.DB
-	threads  []slkdb.Thread
-	cursor   int
-	mode     viewMode
-	viewport viewport.Model
-	width    int
-	height   int
-	renderer *glamour.TermRenderer
-	cache    map[string]string            // ts → rendered card
-	unfurls  map[string]map[string]string // ts → (url → tweet text)
-	err      error
+	db        *sql.DB
+	threads   []slkdb.Thread
+	filtered  []int // indices into threads currently visible (search filter applied)
+	searching bool
+	query     string
+	cursor    int
+	mode      viewMode
+	viewport  viewport.Model
+	width     int
+	height    int
+	renderer  *glamour.TermRenderer
+	cache     map[string]string            // ts → rendered card
+	unfurls   map[string]map[string]string // ts → (url → tweet text)
+	err       error
 }
 
 func initialModel() (model, error) {
@@ -76,12 +79,38 @@ func initialModel() (model, error) {
 		db.Close()
 		return model{}, err
 	}
+	filtered := make([]int, len(threads))
+	for i := range threads {
+		filtered[i] = i
+	}
 	return model{
-		db:      db,
-		threads: threads,
-		cache:   make(map[string]string),
-		unfurls: make(map[string]map[string]string),
+		db:       db,
+		threads:  threads,
+		filtered: filtered,
+		cache:    make(map[string]string),
+		unfurls:  make(map[string]map[string]string),
 	}, nil
+}
+
+// applyFilter rebuilds m.filtered from m.threads based on m.query (case-insensitive
+// substring match against author, channel, and text).
+func (m *model) applyFilter() {
+	if m.query == "" {
+		m.filtered = make([]int, len(m.threads))
+		for i := range m.threads {
+			m.filtered[i] = i
+		}
+		return
+	}
+	q := strings.ToLower(m.query)
+	m.filtered = m.filtered[:0]
+	for i, t := range m.threads {
+		if strings.Contains(strings.ToLower(t.Text), q) ||
+			strings.Contains(strings.ToLower(t.Author), q) ||
+			strings.Contains(strings.ToLower(t.ChannelName), q) {
+			m.filtered = append(m.filtered, i)
+		}
+	}
 }
 
 func (m model) Init() tea.Cmd {
@@ -103,15 +132,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			glamour.WithWordWrap(msg.Width),
 		)
 		m.cache = make(map[string]string)
-		if m.mode == cardView && len(m.threads) > 0 {
-			m.viewport.SetContent(m.renderCard(m.threads[m.cursor]))
+		if m.mode == cardView && len(m.filtered) > 0 {
+			m.viewport.SetContent(m.renderCard(m.threads[m.filtered[m.cursor]]))
 		}
 
 	case unfurledMsg:
 		m.unfurls[msg.ts] = msg.unfurls
 		delete(m.cache, msg.ts) // invalidate so card re-renders with tweet text
-		if m.mode == cardView && len(m.threads) > 0 && m.threads[m.cursor].TS == msg.ts {
-			m.viewport.SetContent(m.renderCard(m.threads[m.cursor]))
+		if m.mode == cardView && len(m.filtered) > 0 && m.threads[m.filtered[m.cursor]].TS == msg.ts {
+			m.viewport.SetContent(m.renderCard(m.threads[m.filtered[m.cursor]]))
 		}
 
 	case tea.KeyMsg:
@@ -126,13 +155,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.searching {
+		return m.updateSearch(msg)
+	}
+
 	switch msg.String() {
 	case "q", "ctrl+c":
 		m.db.Close()
 		return m, tea.Quit
 
+	case "/":
+		m.searching = true
+		m.query = ""
+		m.applyFilter()
+		m.cursor = 0
+
 	case "j", "down":
-		if m.cursor < len(m.threads)-1 {
+		if m.cursor < len(m.filtered)-1 {
 			m.cursor++
 		}
 
@@ -143,15 +182,15 @@ func (m model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "ctrl+d":
 		step := max(1, (m.height-5)/2)
-		m.cursor = min(m.cursor+step, len(m.threads)-1)
+		m.cursor = min(m.cursor+step, len(m.filtered)-1)
 
 	case "ctrl+u":
 		step := max(1, (m.height-5)/2)
 		m.cursor = max(m.cursor-step, 0)
 
 	case "enter", " ":
-		if len(m.threads) > 0 {
-			t := m.threads[m.cursor]
+		if len(m.filtered) > 0 {
+			t := m.threads[m.filtered[m.cursor]]
 			m.mode = cardView
 			m.viewport.SetContent(m.renderCard(t))
 			m.viewport.GotoTop()
@@ -159,14 +198,43 @@ func (m model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "r":
-		if len(m.threads) > 0 {
-			t := m.threads[m.cursor]
+		if len(m.filtered) > 0 {
+			idx := m.filtered[m.cursor]
+			t := m.threads[idx]
 			slkdb.SetStatus(m.db, t.TS, "read")
-			m.threads = append(m.threads[:m.cursor], m.threads[m.cursor+1:]...)
-			if m.cursor > 0 && m.cursor >= len(m.threads) {
-				m.cursor = len(m.threads) - 1
+			m.threads = append(m.threads[:idx], m.threads[idx+1:]...)
+			m.applyFilter()
+			if m.cursor > 0 && m.cursor >= len(m.filtered) {
+				m.cursor = len(m.filtered) - 1
 			}
 		}
+	}
+	return m, nil
+}
+
+// updateSearch handles key input while the "/" filter prompt is active.
+func (m model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyEsc:
+		m.searching = false
+		m.query = ""
+		m.applyFilter()
+		m.cursor = 0
+
+	case tea.KeyEnter:
+		m.searching = false
+
+	case tea.KeyBackspace:
+		if len(m.query) > 0 {
+			m.query = m.query[:len(m.query)-1]
+			m.applyFilter()
+			m.cursor = 0
+		}
+
+	case tea.KeyRunes, tea.KeySpace:
+		m.query += string(msg.Runes)
+		m.applyFilter()
+		m.cursor = 0
 	}
 	return m, nil
 }
@@ -181,19 +249,22 @@ func (m model) updateCard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = listView
 
 	case "r":
-		if len(m.threads) > 0 {
-			t := m.threads[m.cursor]
+		if len(m.filtered) > 0 {
+			idx := m.filtered[m.cursor]
+			t := m.threads[idx]
 			slkdb.SetStatus(m.db, t.TS, "read")
-			m.threads = append(m.threads[:m.cursor], m.threads[m.cursor+1:]...)
-			if m.cursor >= len(m.threads) {
-				m.cursor = len(m.threads) - 1
+			m.threads = append(m.threads[:idx], m.threads[idx+1:]...)
+			m.applyFilter()
+			if m.cursor >= len(m.filtered) {
+				m.cursor = len(m.filtered) - 1
 			}
-			if len(m.threads) == 0 {
+			if len(m.filtered) == 0 {
 				m.mode = listView
 			} else {
-				m.viewport.SetContent(m.renderCard(m.threads[m.cursor]))
+				next := m.threads[m.filtered[m.cursor]]
+				m.viewport.SetContent(m.renderCard(next))
 				m.viewport.GotoTop()
-				return m, fetchUnfurls(m.threads[m.cursor])
+				return m, fetchUnfurls(next)
 			}
 		}
 
@@ -204,24 +275,26 @@ func (m model) updateCard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.viewport.HalfPageUp()
 
 	case "n":
-		if m.cursor < len(m.threads)-1 {
+		if m.cursor < len(m.filtered)-1 {
 			m.cursor++
-			m.viewport.SetContent(m.renderCard(m.threads[m.cursor]))
+			t := m.threads[m.filtered[m.cursor]]
+			m.viewport.SetContent(m.renderCard(t))
 			m.viewport.GotoTop()
-			return m, fetchUnfurls(m.threads[m.cursor])
+			return m, fetchUnfurls(t)
 		}
 
 	case "p":
 		if m.cursor > 0 {
 			m.cursor--
-			m.viewport.SetContent(m.renderCard(m.threads[m.cursor]))
+			t := m.threads[m.filtered[m.cursor]]
+			m.viewport.SetContent(m.renderCard(t))
 			m.viewport.GotoTop()
-			return m, fetchUnfurls(m.threads[m.cursor])
+			return m, fetchUnfurls(t)
 		}
 
 	case "o":
-		if len(m.threads) > 0 {
-			openURL(m.threads[m.cursor].SlackURL)
+		if len(m.filtered) > 0 {
+			openURL(m.threads[m.filtered[m.cursor]].SlackURL)
 		}
 
 	default:
@@ -254,7 +327,14 @@ func (m model) viewList() string {
 	var b strings.Builder
 
 	header := headerStyle.Render(fmt.Sprintf("inbox  %d unread", len(m.threads)))
+	if m.query != "" {
+		header += "  " + dimStyle.Render(fmt.Sprintf("(filter %q: %d match)", m.query, len(m.filtered)))
+	}
 	b.WriteString(header + "\n\n")
+
+	if len(m.filtered) == 0 {
+		b.WriteString(dimStyle.Render("no matches") + "\n")
+	}
 
 	start := 0
 	maxRows := m.height - 5
@@ -265,12 +345,12 @@ func (m model) viewList() string {
 		start = m.cursor - maxRows + 1
 	}
 	end := start + maxRows
-	if end > len(m.threads) {
-		end = len(m.threads)
+	if end > len(m.filtered) {
+		end = len(m.filtered)
 	}
 
 	for i := start; i < end; i++ {
-		t := m.threads[i]
+		t := m.threads[m.filtered[i]]
 		indicator := noiseLabel(noiseScore(t))
 		channel := channelStyle.Render("#" + t.ChannelName)
 		author := t.Author
@@ -289,13 +369,17 @@ func (m model) viewList() string {
 		}
 	}
 
-	b.WriteString("\n" + helpStyle.Render("j/k navigate  ctrl+d/ctrl+u page  enter card  r read  q quit"))
+	if m.searching {
+		b.WriteString("\n" + helpStyle.Render("/"+m.query+"█"))
+	} else {
+		b.WriteString("\n" + helpStyle.Render("j/k navigate  ctrl+d/ctrl+u page  enter card  / search  r read  q quit"))
+	}
 	return b.String()
 }
 
 func (m model) viewCard() string {
 	var b strings.Builder
-	t := m.threads[m.cursor]
+	t := m.threads[m.filtered[m.cursor]]
 
 	header := fmt.Sprintf("%s  %s  #%s",
 		headerStyle.Render(t.Author),
