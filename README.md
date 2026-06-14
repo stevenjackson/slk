@@ -60,6 +60,7 @@ Required OAuth scopes:
 | `groups:read` | List private channels (optional) |
 | `users:read` | Resolve user names |
 | `im:history` | Read DMs (optional) |
+| `files:read` | Download files from messages |
 
 ### 2. Configure
 
@@ -89,6 +90,15 @@ slk sync --days 30     # pull last 30 days
 ```
 
 Sync is incremental — subsequent runs only fetch messages newer than the last sync. Threads are fetched automatically when a message has replies.
+
+### Downloading files
+
+```sh
+slk download https://yourworkspace.slack.com/archives/C.../p...
+slk download <url> -o /tmp/recording.mp4
+```
+
+Downloads the first file attached to a Slack message. Works with channel messages and thread replies. Prints the output path to stdout.
 
 ### Fetching a specific message
 
